@@ -24,10 +24,37 @@ Outputs:
       Fn::GetAtt:
       - HelloWorldFunctionRole
       - Arn
+Parameters:
+  TableName:
+    AllowedPattern: ^[A-Za-z]+$
+    ConstraintDescription: Required parameter. Must be characters only. No numbers
+      allowed.
+    Default: loggingTable
+    Description: (Required) The name of the new DynamoDB table you want to create
+      and save to. Minimum 3 characters
+    MaxLength: 50
+    MinLength: 3
+    Type: String
 Resources:
+  DynamoDBTable:
+    Properties:
+      AttributeDefinitions:
+      - AttributeName: itemId
+        AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+      - AttributeName: itemId
+        KeyType: HASH
+      TableName:
+        Ref: TableName
+    Type: AWS::DynamoDB::Table
   HelloWorldFunction:
     Properties:
-      CodeUri: s3://sc-learning-serverless-publish-sam-app/2234f55672ea4d59efde0d4e3b50f979
+      CodeUri: s3://sc-learning-serverless-publish-sam-app/5cfa44da132d22e86ecb1b8f4db954b9
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: TableName
       Events:
         HelloWorld:
           Properties:
@@ -35,6 +62,10 @@ Resources:
             Path: /{proxy+}
           Type: Api
       Handler: app.lambda_handler
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: TableName
       Runtime: python3.6
     Type: AWS::Serverless::Function
 Transform: AWS::Serverless-2016-10-31

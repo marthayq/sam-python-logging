@@ -1,6 +1,12 @@
 import json
 import time
 import requests
+import os
+import uuid
+import boto3
+from datetime import datetime
+
+dynamodb = boto3.resource('dynamodb')
 
 def save_log(logData):
     firebaseProject = "https://awesome-56c60.firebaseio.com/"
@@ -10,6 +16,21 @@ def save_log(logData):
                             data=json.dumps(logData))
     result = json.loads(response.text)
     return result
+    
+def save_dynamodb_log(logData):
+    timestamp = str(datetime.utcnow().timestamp())
+
+    table = dynamodb.Table('loggingTable')
+    
+    item = {
+        'itemId': str(uuid.uuid1()),
+        'text': "Just testing",
+        'createdAt': timestamp,
+    }
+
+    # write the todo to the database
+    table.put_item(Item=item)
+
 
 def lambda_handler(event, context):
     method = event.get('httpMethod','GET') 
@@ -35,11 +56,12 @@ def lambda_handler(event, context):
         body = json.loads(event.get('body','{}'))
  
         result = save_log(body)
-
+        save_dynamodb_log(body)
+        
         return {
             "statusCode": 200,
             "body": json.dumps({
                 "loggedData":body,
-                "result":result
+                "result":result # "os": str(list(os.environ.keys()))
             }),
         }
