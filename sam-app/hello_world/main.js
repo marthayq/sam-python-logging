@@ -23,14 +23,34 @@ var app = new Vue({
     },
     correct:{
       1: false,
-      2: true,
+      2: false,
       3: false,
-      4: true
+      4: false
     }
   },
   methods: {
     isComplete: function(problem) {
       return this.correct[problem];
+    },
+    log: function(event){
+      console.log('Logging event.');
+      fetch('./', {
+        method: 'post',
+        body: JSON.stringify(event)
+      }).then(function(response) {
+        return response.json();
+      }).then(function(data) {
+        console.log('logged event', data);
+      });
+    },
+    check: function(){
+      if (this.givens[this.currentProblem] === this.solutions[this.currentProblem]){
+          this.correct[this.currentProblem] = true;
+          this.log({"event":"correct"})
+      } else {
+          this.correct[this.currentProblem] = false;
+          this.log({"event":"incorrect"})
+      }
     }
   }
   

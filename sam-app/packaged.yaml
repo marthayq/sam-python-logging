@@ -50,7 +50,7 @@ Resources:
     Type: AWS::DynamoDB::Table
   HelloWorldFunction:
     Properties:
-      CodeUri: s3://sc-learning-serverless-publish-sam-app/20d34687dedc8417f3f0f39e783f7be6
+      CodeUri: s3://sc-learning-serverless-publish-sam-app/a4662e40259738e99fa619870690fac0
       Environment:
         Variables:
           TABLE_NAME:
