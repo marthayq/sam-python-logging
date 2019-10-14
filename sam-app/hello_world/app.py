@@ -2,9 +2,9 @@ import json
 import time
 import requests
 import os
-import uuid
 import boto3
 from datetime import datetime
+##import uuid
 
 dynamodb = boto3.resource('dynamodb')
 
@@ -19,12 +19,14 @@ def save_firebase_log(logData):
     firebaseProject = "https://awesome-56c60.firebaseio.com/"
     url = firebaseProject+"/logs.json"
     
-    log = {
-        "updated":{ ".sv": "timestamp" },
-        "data":logData
-    }
+    timestamp = str(datetime.utcnow().timestamp())
+    
+    log = logData.copy() # A shallow copy
+    log['createdAt'] = timestamp
+
     response = requests.post(url=url,
                             data=json.dumps(log))
+                            
     result = json.loads(response.text)
     return result
     
@@ -33,14 +35,10 @@ def save_dynamodb_log(logData):
 
     table = dynamodb.Table('loggingTable')
     
-    log = {
-        'itemId': str(uuid.uuid1()),
-        'createdAt': timestamp,
-        'data': logData
-    }
-    # Add a unique key and createdAt properties
-    #logData['itemId'] = str(uuid.uuid1())
-    #logData['createdAt'] = timestamp
+    log = logData.copy() # A shallow copy
+    log['itemId'] = str(timestamp) #str(uuid.uuid1()) for more granular keys
+    log['createdAt'] = timestamp
+    
 
     # write logData to dynamoDB
     table.put_item(Item=log)

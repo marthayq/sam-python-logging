@@ -2,7 +2,7 @@ var app = new Vue({
   el: "#app",
   data: {
     problems: [1, 2, 3, 4],
-    currentProblem: 2,
+    currentProblem: 1,
     directions: {
       1: "Enter the letter a.",
       2: "Enter the letter b.",
@@ -46,10 +46,10 @@ var app = new Vue({
     check: function(){
       if (this.givens[this.currentProblem] === this.solutions[this.currentProblem]){
           this.correct[this.currentProblem] = true;
-          this.log({"event":"correct"})
+          this.log({"event":"correct", "problem":this.currentProblem})
       } else {
           this.correct[this.currentProblem] = false;
-          this.log({"event":"incorrect"})
+          this.log({"event":"incorrect", "problem":this.currentProblem})
       }
     }
   }
