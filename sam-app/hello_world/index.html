@@ -1,14 +1,38 @@
+<!DOCTYPE html>
 <html>
-
-<head>
-    <meta charset="utf-8">
-    <meta content="width=device-width,initial-scale=1,minimal-ui" name="viewport">
-    <link rel="stylesheet" href="https://unpkg.com/vue-material@beta/dist/vue-material.min.css">
-    <link rel="stylesheet" href="https://unpkg.com/vue-material@beta/dist/theme/default.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.32.0/codemirror.min.css" />
-</head>
-
-<body>
-    <h1>Pythonic Code Activity</h1>
-</body>
+  <head>
+    <title>Learn Emojis</title>
+  </head>
+  <body>
+    <div id="app">
+      <h3>Learn Emojis</h3>
+      <span v-for="problem in problems">
+        <span v-if="problem===currentProblem">
+           <b> {{problem}} </b>
+        </span>
+        <span v-else-if="isComplete(problem)">
+          <button @click="currentProblem=problem"
+                  style="background-color:green">
+            {{problem}}
+          </button>
+        </span>
+       <span v-else>
+          <button @click="currentProblem=problem">
+            {{problem}}
+          </button>
+       </span>
+      </span>
+      <br />
+      <h4>Directions:</h4>
+        {{directions[currentProblem]}} 
+      <br/>
+      <input v-model="givens[currentProblem]"> <br/>
+      <span v-if="isComplete(currentProblem)"
+            style="color:green">
+        Correct!
+      </span>
+    </div>
+    <script src="https://unpkg.com/vue"></script>
+    <script src="./main.js"></script>
+  </body>
 </html>
