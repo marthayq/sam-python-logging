@@ -20,11 +20,18 @@ var app = new Vue({
       2: "b",
       3: "c",
       4: "d"
+    },
+    correct:{
+      1: false,
+      2: true,
+      3: false,
+      4: true
     }
   },
   methods: {
     isComplete: function(problem) {
-      return this.givens[problem] === this.solutions[problem];
+      return this.correct[problem];
     }
   }
+  
 });

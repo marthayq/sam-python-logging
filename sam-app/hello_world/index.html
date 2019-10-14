@@ -26,7 +26,9 @@
       <h4>Directions:</h4>
         {{directions[currentProblem]}} 
       <br/>
-      <input v-model="givens[currentProblem]"> <br/>
+      <input v-model="givens[currentProblem]"> 
+      <button @click="check()">Check</button>
+      <br/>
       <span v-if="isComplete(currentProblem)"
             style="color:green">
         Correct!
