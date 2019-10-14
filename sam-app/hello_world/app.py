@@ -9,11 +9,22 @@ from datetime import datetime
 dynamodb = boto3.resource('dynamodb')
 
 def save_log(logData):
+    # Comment out one or both of these
+    result = save_firebase_log(logData)
+    result = save_dynamodb_log(logData)
+
+    return result
+    
+def save_firebase_log(logData):
     firebaseProject = "https://awesome-56c60.firebaseio.com/"
     url = firebaseProject+"/logs.json"
-        
-    response = requests.post(url=url, 
-                            data=json.dumps(logData))
+    
+    log = {
+        "updated":{ ".sv": "timestamp" },
+        "data":logData
+    }
+    response = requests.post(url=url,
+                            data=json.dumps(log))
     result = json.loads(response.text)
     return result
     
@@ -21,20 +32,19 @@ def save_dynamodb_log(logData):
     timestamp = str(datetime.utcnow().timestamp())
 
     table = dynamodb.Table('loggingTable')
-    # Add a unique key and createdAt properties
-    logData['itemId'] = str(uuid.uuid1())
-    logData['createdAt'] = timestamp
-    """
-    item = {
+    
+    log = {
         'itemId': str(uuid.uuid1()),
-        'text': "Just testing",
         'createdAt': timestamp,
+        'data': logData
     }
-    """
+    # Add a unique key and createdAt properties
+    #logData['itemId'] = str(uuid.uuid1())
+    #logData['createdAt'] = timestamp
 
-    # write the todo to the database
-    table.put_item(Item=logData)
-
+    # write logData to dynamoDB
+    table.put_item(Item=log)
+    return logData
 
 def lambda_handler(event, context):
     method = event.get('httpMethod','GET') 
@@ -60,12 +70,11 @@ def lambda_handler(event, context):
         body = json.loads(event.get('body','{}'))
  
         result = save_log(body)
-        save_dynamodb_log(body)
-        
+
         return {
             "statusCode": 200,
             "body": json.dumps({
                 "loggedData":body,
-                "result":result # "os": str(list(os.environ.keys()))
+                "result":result
             }),
         }
