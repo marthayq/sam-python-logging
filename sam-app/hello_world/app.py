@@ -21,15 +21,19 @@ def save_dynamodb_log(logData):
     timestamp = str(datetime.utcnow().timestamp())
 
     table = dynamodb.Table('loggingTable')
-    
+    # Add a unique key and createdAt properties
+    logData['itemId'] = str(uuid.uuid1())
+    logData['createdAt'] = timestamp
+    """
     item = {
         'itemId': str(uuid.uuid1()),
         'text': "Just testing",
         'createdAt': timestamp,
     }
+    """
 
     # write the todo to the database
-    table.put_item(Item=item)
+    table.put_item(Item=logData)
 
 
 def lambda_handler(event, context):
