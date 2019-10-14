@@ -2,6 +2,15 @@ import json
 import time
 import requests
 
+def save_log(logData):
+    firebaseProject = "https://awesome-56c60.firebaseio.com/"
+    url = firebaseProject+"/logs.json"
+        
+    response = requests.post(url=url, 
+                            data=json.dumps(logData))
+    result = json.loads(response.text)
+    return result
+
 def lambda_handler(event, context):
     method = event.get('httpMethod','GET') 
 
@@ -25,19 +34,12 @@ def lambda_handler(event, context):
     if method == 'POST':
         body = json.loads(event.get('body','{}'))
  
-        # Todo: Configure post method to log posts
-        # Replace this with your firebase project url
-        firebaseProject = "https://awesome-56c60.firebaseio.com/"
-        url = firebaseProject+"/logs.json"
-        
-        response = requests.post(url=url, 
-                            data=json.dumps(body))
-        data = json.loads(response.text)
-        
+        result = save_log(body)
+
         return {
             "statusCode": 200,
             "body": json.dumps({
                 "loggedData":body,
-                "firebaseResponse":data
+                "result":result
             }),
         }
