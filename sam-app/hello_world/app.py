@@ -1,78 +1,167 @@
+# http://alanwsmith.com/capturing-python-log-output-in-a-variable
+
 import json
-import time
-import requests
+import pandas as pd
+import boto3 as bt3
+import re
 import os
-import boto3
-from datetime import datetime
-##import uuid
+import logging
+import io
 
-dynamodb = boto3.resource('dynamodb')
+logger = logging.getLogger('basic_logger')
+logger.setLevel(logging.DEBUG)
 
-def save_log(logData):
-    # Comment out one or both of these
-    result = save_firebase_log(logData)
-    result = save_dynamodb_log(logData)
-
-    return result
-    
-def save_firebase_log(logData):
-    firebaseProject = "https://awesome-56c60.firebaseio.com/"
-    url = firebaseProject+"/logs.json"
-    
-    timestamp = str(datetime.utcnow().timestamp())
-    
-    log = logData.copy() # A shallow copy
-    log['createdAt'] = timestamp
-
-    response = requests.post(url=url,
-                            data=json.dumps(log))
-                            
-    result = json.loads(response.text)
-    return result
-    
-def save_dynamodb_log(logData):
-    timestamp = str(datetime.utcnow().timestamp())
-
-    table = dynamodb.Table('loggingTable')
-    
-    log = logData.copy() # A shallow copy
-    log['itemId'] = str(timestamp) #str(uuid.uuid1()) for more granular keys
-    log['createdAt'] = timestamp
-    
-
-    # write logData to dynamoDB
-    table.put_item(Item=log)
-    return logData
+status_check = [0]*10  
 
 def lambda_handler(event, context):
-    method = event.get('httpMethod','GET') 
-
+    
+    ### Setup the console handler with a StringIO object
+    log_capture_string = io.StringIO()
+    ch = logging.StreamHandler(log_capture_string)
+    ch.setLevel(logging.DEBUG)
+    
+    ### Optionally add a formatter
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    ch.setFormatter(formatter)
+    
+    ### Add the console handler to the logger
+    logger.addHandler(ch)
+    
+    def runCode(myDF, myCode):
+        namespace = {'original_df': myDF}
+        exec('import pandas as pd', namespace)
+        exec(myCode, namespace)
+        return namespace['original_df']
+    
+    s3 = bt3.client('s3')
+    method = event.get('httpMethod',{}) 
+    
+    with open('index.html', 'r') as f:
+        indexPage = f.read()
+    
+    
     if method == 'GET':
-        # Look for the path on GETs
-        path = event.get('path','/hello/index.html')
-        # Return the contents of local files on GETs
-        if path == "/hello/" or path == "/hello": 
-            path = "/hello/index.html"
-        file = path.replace("/hello/","")
-        with open(file, 'r') as f:
-            page = f.read()
         return {
             "statusCode": 200,
             "headers": {
             'Content-Type': 'text/html',
             },
-            "body": page
+            "body": indexPage
         }
         
     if method == 'POST':
-        body = json.loads(event.get('body','{}'))
- 
-        result = save_log(body)
-
+        bodyContent = event.get('body',{}) 
+        parsedBodyContent = json.loads(bodyContent)
+        testCases = re.sub('&zwnj;.*&zwnj;','',parsedBodyContent["shown"]["0"], flags=re.DOTALL) 
+        userSolution = parsedBodyContent["editable"]["0"] 
+        questionName = parsedBodyContent["qname"]["0"]
+        
+        # Reading the original dataframe from S3 
+        original_df = pd.read_csv('https://frame-pandas.s3.amazonaws.com/pandas_data.csv')
+        default_df = original_df.copy()
+        
+        errorStatus = False
+        # Evaluating User Inputs
+        try:
+            original_df = runCode(original_df, userSolution)
+        except:
+            errorStatus = True
+            logger.exception('Debug Message')
+        
+        if not errorStatus:
+            if isinstance(original_df, str):
+                userHtmlFeedback = original_df
+            elif isinstance(original_df, pd.core.series.Series):
+                original_df = original_df.to_frame()
+                userHtmlFeedback = original_df.to_html()
+            else:
+                userHtmlFeedback = original_df.to_html()
+        else:
+            userHtmlFeedback = "Error - Please Look at Python Logs"
+        
+        right_answer_text = "temp"
+        isComplete = 0
+        
+        if questionName == 'Selecting Rows': #Q1
+            right_answer = default_df.iloc[[1,4,9]]
+            right_answer_text = 'original_df.iloc[[1,4,9]]'
+            if(right_answer.equals(original_df)):
+                status_check[0]=1
+                isComplete = 1
+        elif questionName == 'Selecting Columns':#Q2
+            right_answer = default_df[['ID','NAME','RESIDENCE']]
+            right_answer_text = 'original_df[[\'ID\',\'NAME\',\'RESIDENCE\']]'
+            if(right_answer.equals(original_df)):
+                status_check[1]=1
+                isComplete = 1
+        elif questionName == 'Selecting Specific Cells':#Q3
+            right_answer = default_df.iloc[8]['NAME']
+            right_answer_text = 'original_df.iloc[8][\'NAME\']'
+            if(right_answer==(original_df)):
+                status_check[2]=1
+                isComplete = 1
+        elif questionName == 'Replacing String Occurrences':#Q4
+            right_answer = default_df.replace("USA","United States")
+            right_answer_text = 'original_df.replace("USA","United States")'
+            if(right_answer.equals(original_df)):
+                status_check[3]=1
+                isComplete = 1
+        elif questionName == 'Filtering Data in Columns':#Q5
+            right_answer = default_df[default_df['CHILDREN']=='Yes']
+            right_answer_text = 'original_df[original_df[\'CHILDREN\']==\'Yes\']'
+            if(right_answer.equals(original_df)):
+                status_check[4]=1
+                isComplete = 1
+        elif questionName == 'Filtering Data based on Multiple Conditions':#Q6
+            right_answer = default_df[(original_df['CHILDREN']=='Yes')|(original_df['RESIDENCE']=='China')]
+            right_answer_text = 'original_df[(original_df[\'CHILDREN\']==\'Yes\')|(original_df[\'RESIDENCE\']==\'China\')]'
+            if(right_answer.equals(original_df)):
+                status_check[5]=1
+                isComplete = 1
+        elif questionName == 'Adding Rows':#Q7
+            right_answer = default_df.append(pd.Series([11,'Tao Tao', 'M', 20, 'Yes', 'Singapore'], index=original_df.columns), ignore_index=True)
+            right_answer_text = 'original_df.append(pd.Series([11,\'Tao Tao\', \'M\', 20, \'Yes\', \'Singapore\'], index=original_df.columns), ignore_index=True)'
+            if(right_answer.equals(original_df)):
+                status_check[6]=1
+                isComplete = 1
+        elif questionName == 'Deleting Rows':#Q8
+            right_answer = default_df.drop(original_df.index[[4,9]])
+            right_answer_text = 'original_df.drop(original_df.index[[4,9]])'
+            if(right_answer.equals(original_df)):
+                status_check[7]=1
+                isComplete = 1
+        elif questionName == 'Finding Min and Max':#Q9
+            right_answer = default_df['NAME'].min()
+            right_answer_text = 'original_df[\'NAME\'].min()'
+            if(right_answer.equals(original_df)):
+                status_check[8]=1
+                isComplete = 1
+        elif questionName == 'Multiplying and Dividing Column Values':#Q10
+            right_answer = 10*default_df.iloc[:,3]
+            right_answer_text = '10*original_df.iloc[:,3]'
+            if(right_answer.equals(original_df)):
+                status_check[9]=1
+                isComplete = 1
+        
+        progress = status_check.count(1)
+        print("Status Check", status_check)
+        print("Progress", progress)
+        
+        ### Pull the contents back into a string and close the stream
+        log_contents = log_capture_string.getvalue()
+        log_capture_string.close()
+        
         return {
             "statusCode": 200,
-            "body": json.dumps({
-                "loggedData":body,
-                "result":result
-            }),
+            "headers": {
+            "Content-Type": "application/json",
+                },
+            "body":  json.dumps({
+                "isComplete":isComplete,
+                "pythonFeedback": log_contents.lower(),
+                "htmlFeedback": userHtmlFeedback,
+                "textFeedback": right_answer_text,
+                "progress": progress,
+                "questionStatus":status_check
+            })
         }
