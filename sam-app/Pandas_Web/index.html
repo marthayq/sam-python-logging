@@ -25,7 +25,6 @@
     <div id="app">
         
         <md-progress-bar md-mode="determinate" :md-value="amount"></md-progress-bar>
-        <input type="range" v-model.number="amount"> {{ amount }}%
         
         <md-tabs>
             <md-tab v-for="question in questions" :key=question.name :md-label=question.num+question.status>
