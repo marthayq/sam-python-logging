@@ -1,5 +1,5 @@
 # http://alanwsmith.com/capturing-python-log-output-in-a-variable
-import requests
+from botocore.vendored import requests
 import json
 import pandas as pd
 import boto3 as bt3
